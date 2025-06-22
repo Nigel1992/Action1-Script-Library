@@ -21,7 +21,6 @@ $InstallerPath = "$env:TEMP\openvpn_latest.exe"
 $OvpnFilePath = "$env:ProgramData\OpenVPN\config\client.ovpn"
 $TaskName = "OpenVPNAutoConnect"
 $FirewallRuleName = "Block-Non-VPN-Traffic"
-$VPNInterface = "OpenVPN TAP-Windows6"
 
 # --- BEGIN: USER MUST REPLACE THIS WITH THEIR OWN OVPN CONFIG ---
 $OvpnConfigContent = @"
@@ -495,7 +494,24 @@ function Cleanup-StaleAdapters {
     }
 
     try {
-        $tapAdapters = Get-NetAdapter -IncludeHidden | Where-Object { $_.InterfaceDescription -like "*OpenVPN TAP-Windows6*" }
+        # Use the same adapter patterns as Get-VPNAdapter function for consistency
+        $adapterPatterns = @(
+            "*TAP-Windows*",
+            "*TAP-Windows Adapter V9*",
+            "*OpenVPN TAP-Windows6*",
+            "*OpenVPN Adapter*",
+            "*TAP-ProtonVPN Windows Adapter V9*"
+        )
+        
+        # Find all OpenVPN TAP adapters using the same patterns
+        $tapAdapters = @()
+        foreach ($pattern in $adapterPatterns) {
+            $adapters = Get-NetAdapter -IncludeHidden | Where-Object { $_.InterfaceDescription -like $pattern }
+            $tapAdapters += $adapters
+        }
+        
+        # Remove duplicates based on InterfaceIndex
+        $tapAdapters = $tapAdapters | Sort-Object InterfaceIndex -Unique
         
         if ($tapAdapters.Count -le 1) {
             Write-Host "No stale OpenVPN adapters found."

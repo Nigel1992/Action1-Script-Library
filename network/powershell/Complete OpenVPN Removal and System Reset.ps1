@@ -110,10 +110,27 @@ if (Test-Path $OpenVPNUninstallPath) {
 # 6. Remove all OpenVPN TAP adapters
 Write-Host "Step 6: Removing all OpenVPN TAP adapters..."
 try {
-    $tapAdapters = Get-NetAdapter -IncludeHidden | Where-Object { $_.InterfaceDescription -like "*OpenVPN TAP-Windows6*" }
+    # Use comprehensive adapter patterns to catch all possible OpenVPN TAP adapters
+    $adapterPatterns = @(
+        "*TAP-Windows*",
+        "*TAP-Windows Adapter V9*",
+        "*OpenVPN TAP-Windows6*",
+        "*OpenVPN Adapter*",
+        "*TAP-ProtonVPN Windows Adapter V9*"
+    )
+    
+    # Find all OpenVPN TAP adapters using the patterns
+    $tapAdapters = @()
+    foreach ($pattern in $adapterPatterns) {
+        $adapters = Get-NetAdapter -IncludeHidden | Where-Object { $_.InterfaceDescription -like $pattern }
+        $tapAdapters += $adapters
+    }
+    
+    # Remove duplicates based on InterfaceIndex
+    $tapAdapters = $tapAdapters | Sort-Object InterfaceIndex -Unique
     
     if ($tapAdapters) {
-        Write-Host "Found $($tapAdapters.Count) 'OpenVPN TAP-Windows6' adapters. Removing all..."
+        Write-Host "Found $($tapAdapters.Count) OpenVPN TAP adapters. Removing all..."
         
         foreach ($adapter in $tapAdapters) {
             Write-Host "Attempting to remove adapter: $($adapter.Name) - $($adapter.InterfaceDescription)"
@@ -132,7 +149,7 @@ try {
         Write-Host "Adapter removal process complete. Giving the system a moment to catch up..."
         Start-Sleep -Seconds 5
     } else {
-        Write-Host "No 'OpenVPN TAP-Windows6' adapters were found."
+        Write-Host "No OpenVPN TAP adapters were found."
     }
 }
 catch {
