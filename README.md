@@ -35,8 +35,8 @@ software/
 ## ✅ How to Use with Action1
 
 1. **Log in** to your [Action1 Dashboard](https://app.action1.com).
-2. Navigate to **Policies** → **Script Repository**.
-3. Click **"Add Script"** and paste or upload a script from this repo.
+2. Navigate to **Configuration** → **Script Library**.
+3. Click **"New Script"** and paste a script from this repo.
 4. Assign to the relevant endpoints or groups.
 5. Monitor the results in real-time through the dashboard.
 
