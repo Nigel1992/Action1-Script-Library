@@ -10,7 +10,7 @@
     to perform an update.
 
 .NOTES
-    Author: Your Name / Adapted for user-friendliness
+    Author: Nigel Hagen
     Version: 1.1
     Date: June 24, 2025
 
@@ -120,16 +120,21 @@ if ($hoursSinceLastUpdate -lt 24) {
 } else {
     Write-Host "`nKaspersky update is older than 24 hours. Initiating update process..." -ForegroundColor Yellow
 
-    # Define the typical path to the Kaspersky command-line update tool (avp.com).
-    # IMPORTANT: You might need to adjust this path if:
-    #   - Your Kaspersky version is different (e.g., Kaspersky 21.30, 20.0, etc.).
-    #   - Kaspersky is installed in a non-standard location.
-    $kasperskyUpdateToolPath = "C:\Program Files (x86)\Kaspersky Lab\Kaspersky 21.20\avp.com"
+    # Dynamically search for avp.com in all Kaspersky Lab subdirectories (handles any version)
+    $kasperskyBasePath = "C:\Program Files (x86)\Kaspersky Lab"
+    $kasperskyUpdateToolPath = $null
+    if (Test-Path $kasperskyBasePath) {
+        $avpPaths = Get-ChildItem -Path $kasperskyBasePath -Recurse -Filter "avp.com" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+        if ($avpPaths -and $avpPaths.Count -gt 0) {
+            # Use the first found avp.com (or you could sort and pick the latest if desired)
+            $kasperskyUpdateToolPath = $avpPaths | Select-Object -First 1
+        }
+    }
 
-    # Verify if the Kaspersky update tool executable exists at the specified path.
-    if (-Not (Test-Path $kasperskyUpdateToolPath)) {
-        Write-Host "ERROR: Kaspersky update executable not found at '$kasperskyUpdateToolPath'." -ForegroundColor Red
-        Write-Host "       Please verify the path and update the script if your Kaspersky version or installation location is different." -ForegroundColor Red
+    # Verify if the Kaspersky update tool executable exists at the found path.
+    if (-Not $kasperskyUpdateToolPath -or -Not (Test-Path $kasperskyUpdateToolPath)) {
+        Write-Host "ERROR: Kaspersky update executable (avp.com) not found in '$kasperskyBasePath'." -ForegroundColor Red
+        Write-Host "       Please verify Kaspersky is installed and update the script if your installation location is different." -ForegroundColor Red
         exit 1 # Exit the script as we can't perform the update.
     }
 
