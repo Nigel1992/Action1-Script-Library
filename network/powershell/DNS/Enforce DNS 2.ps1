@@ -1,13 +1,24 @@
- # ---------------------------------------------------------------
-# OpenDNS servers
 # ---------------------------------------------------------------
-$PrimaryDNS = "208.67.222.222"
-$SecondaryDNS = "208.67.220.220"
+# Script to disable IPv6 and set OpenDNS on all active adapters
+# This version is safe to run via Action1-agent (no pop-ups, no toast)
+# Only runs if IPv6 is still enabled or DNS is not set to OpenDNS
+# ---------------------------------------------------------------
 
-# Active adapters
+# ------------------------------
+# CONFIGURATION - modify if needed
+# ------------------------------
+$PrimaryDNS = "208.67.222.222"        # OpenDNS primary DNS
+$SecondaryDNS = "208.67.220.220"      # OpenDNS secondary DNS
+
+# ------------------------------
+# Get all active network adapters
+# ------------------------------
 $Adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
 
-# Controleer eerst of er überhaupt iets aangepast hoeft te worden
+# ------------------------------
+# Pre-check: determine if any adapter actually needs changes
+# This prevents unnecessary execution
+# ------------------------------
 $NeedsAction = $false
 
 foreach ($Adapter in $Adapters) {
@@ -23,13 +34,13 @@ foreach ($Adapter in $Adapters) {
 }
 
 if (-not $NeedsAction) {
-    Write-Output "Alle adapters hebben al OpenDNS ingesteld en IPv6 is uit. Geen actie nodig."
+    Write-Output "All adapters already have OpenDNS configured and IPv6 is disabled. No action required."
     exit
 }
 
-# ---------------------------------------------------------------
-# Verwerking van adapters die actie nodig hebben
-# ---------------------------------------------------------------
+# ------------------------------
+# Process each adapter that needs changes
+# ------------------------------
 foreach ($Adapter in $Adapters) {
     $InterfaceAlias = $Adapter.Name
     $CurrentDNS = (Get-DnsClientServerAddress -InterfaceAlias $InterfaceAlias -AddressFamily IPv4).ServerAddresses
@@ -40,7 +51,9 @@ foreach ($Adapter in $Adapters) {
         Write-Output "`nProcessing adapter: $InterfaceAlias"
         Write-Output "IPv6 enabled: $IPv6Enabled, Current DNS: $CurrentDNS"
 
-        # IPv6 uitschakelen
+        # ------------------------------
+        # Disable IPv6 binding
+        # ------------------------------
         try {
             Disable-NetAdapterBinding -Name $InterfaceAlias -ComponentID ms_tcpip6 -Confirm:$false -ErrorAction Stop
             Write-Output "✅ IPv6 disabled on $InterfaceAlias"
@@ -49,7 +62,9 @@ foreach ($Adapter in $Adapters) {
             Write-Output ("❌ Failed to disable IPv6 on {0}: {1}" -f $InterfaceAlias, $_)
         }
 
-        # Stel OpenDNS in
+        # ------------------------------
+        # Set DNS to OpenDNS
+        # ------------------------------
         try {
             Set-DnsClientServerAddress -InterfaceAlias $InterfaceAlias -ServerAddresses ($PrimaryDNS, $SecondaryDNS) -ErrorAction Stop
             Write-Output "✅ DNS set to OpenDNS for $InterfaceAlias"
@@ -58,7 +73,9 @@ foreach ($Adapter in $Adapters) {
             Write-Output ("❌ Failed to set DNS for {0}: {1}" -f $InterfaceAlias, $_)
         }
 
-        # Herstart adapter
+        # ------------------------------
+        # Restart network adapter to apply changes
+        # ------------------------------
         try {
             Disable-NetAdapter -Name $InterfaceAlias -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 2
@@ -69,14 +86,17 @@ foreach ($Adapter in $Adapters) {
             Write-Output ("❌ Failed to restart adapter {0}: {1}" -f $InterfaceAlias, $_)
         }
 
-        # Test of internet werkt veilig
+        # ------------------------------
+        # Test if internet is reachable
+        # Uses ping to 8.8.8.8 until successful
+        # ------------------------------
         $InternetUp = $false
         $ping = New-Object System.Net.NetworkInformation.Ping
         Write-Output "🔄 Testing internet connectivity..."
 
         while (-not $InternetUp) {
             try {
-                $reply = $ping.Send("8.8.8.8", 1000)
+                $reply = $ping.Send("8.8.8.8", 1000)  # 1-second timeout
                 if ($reply.Status -eq "Success") {
                     $InternetUp = $true
                 } else {
@@ -88,16 +108,18 @@ foreach ($Adapter in $Adapters) {
             }
         }
 
-        Write-Output "✅ Adapter '$InterfaceAlias' is opnieuw gestart en internet werkt weer."
+        Write-Output "✅ Adapter '$InterfaceAlias' has been restarted and internet is working."
     }
     else {
-        Write-Output "`nAdapter $InterfaceAlias heeft al OpenDNS ingesteld en IPv6 is uit. Geen actie nodig."
+        Write-Output "`nAdapter $InterfaceAlias already has OpenDNS configured and IPv6 is disabled. No action needed."
     }
 }
 
-# DNS cache flushen
+# ------------------------------
+# Flush DNS cache to apply changes
+# ------------------------------
 Write-Output "`nFlushing DNS cache..."
 Clear-DnsClientCache
 Write-Output "✅ DNS cache cleared"
 
-Write-Output "`nScript voltooid."
+Write-Output "`nScript completed."
