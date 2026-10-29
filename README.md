@@ -5,6 +5,8 @@
 
 # Action1 RMM Script Library
 
+[![Vibe Coded](https://img.shields.io/badge/Vibe_Coded-✨-8A2BE2?style=for-the-badge)](https://github.com)
+
 This repository contains a collection of custom scripts designed for use with [Action1 RMM](https://www.action1.com), a cloud-based remote monitoring and management platform. These scripts help automate common IT administration, maintenance, security, and monitoring tasks.
 
 ## 📁 Repository Structure
